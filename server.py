@@ -9,6 +9,7 @@ from werkzeug.urls import url_encode
 from pyhpo.ontology import Ontology
 from pyhpo.set import HPOSet, BasicHPOSet
 from pyhpo.annotations import Gene, Omim
+from pyhpo.utils import DiseaseSet
 
 
 SECRET_KEY = 'abcc'
@@ -77,6 +78,16 @@ def set_similarity(set1, set2):
     return jsonify({'similarity': s1.similarity(s2)})
 
 
+@app.route('/disease/<set1>', methods=['GET'])
+def disease_similarity(set1):
+    s1 = HPOSet.from_serialized(set1)
+    sims = [
+        ('{}-{}'.format(d[0].id, d[0].name), s1.similarity(d[1]))
+        for d in DiseaseSet.all()
+    ]
+    return jsonify(sorted(sims, key=lambda x: x[1], reverse=True)[0:10])
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Run PyHPO as daemon HTTP server')
@@ -90,4 +101,6 @@ if __name__ == '__main__':
 
     print('Loading Ontology')
     Ontology()
+    print('Building disease sets')
+    DiseaseSet.build()
     app.run(host=args.host, port=args.port, debug=True)
