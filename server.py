@@ -75,17 +75,27 @@ def work_with_set(string, action):
 def set_similarity(set1, set2):
     s1 = HPOSet.from_serialized(set1)
     s2 = HPOSet.from_serialized(set2)
-    return jsonify({'similarity': s1.similarity(s2)})
+    method = request.args.get('method', 'resnik')
+    kind = request.args.get('kind', 'omim')
+    return jsonify({'similarity': s1.similarity(s2, kind, method)})
 
 
 @app.route('/disease/<set1>', methods=['GET'])
 def disease_similarity(set1):
     s1 = HPOSet.from_serialized(set1)
-    sims = [
-        ('{}-{}'.format(d[0].id, d[0].name), s1.similarity(d[1]))
-        for d in DiseaseSet.all()
+    method = request.args.get('method', 'resnik')
+    kind = request.args.get('kind', 'omim')
+    count = int(request.args.get('count', 10))
+    offset = int(request.args.get('offset', 0))
+    sims = [{
+        'omimid': d[0].id,
+        'omimname': d[0].name,
+        'similarity': s1.similarity(d[1], kind, method)
+        } for d in DiseaseSet.all()
     ]
-    return jsonify(sorted(sims, key=lambda x: x[1], reverse=True)[0:10])
+    return jsonify({'similarities': sorted(
+        sims, key=lambda x: x['similarity'], reverse=True
+    )[offset: (count + offset)]})
 
 
 if __name__ == '__main__':
