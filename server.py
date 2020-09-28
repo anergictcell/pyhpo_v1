@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 
 from pyhpo.ontology import Ontology
 from pyhpo.annotations import Gene, Omim
+from pyhpo.set import HPOSet
 
 
 app = FastAPI()
@@ -418,7 +419,10 @@ async def omim_disease(omim_id: int, verbose: bool = False):
         OMIM Disease
 
     """
-    res = Omim.get(omim_id).toJSON(verbose=verbose)
+    try:
+        res = Omim.get(omim_id).toJSON(verbose=verbose)
+    except AttributeError:
+        raise HTTPException(status_code=404, detail="OMIM disease does not exist")
     try:
         res['hpo'] = [Ontology[x].toJSON() for x in res['hpo']]
     except KeyError:
@@ -448,9 +452,81 @@ async def gene(gene_id, verbose: bool = False):
         Gene
 
     """
-    res = Gene.get(gene_id).toJSON(verbose=verbose)
+    try:
+        res = Gene.get(gene_id).toJSON(verbose=verbose)
+    except AttributeError:
+        raise HTTPException(status_code=404, detail="Gene does not exist")
     try:
         res['hpo'] = [Ontology[x].toJSON() for x in res['hpo']]
     except KeyError:
         pass
     return res
+
+
+@app.get(
+    '/terms/similarity',
+    tags=['terms', 'similarity'],
+    response_description='Similarity score'
+)
+async def terms_similarity(
+    set1: str,
+    set2: str,
+    method: str = 'graphic',
+    combine: str = 'funSimAvg',
+    kind: str = 'omim'
+):
+    """
+    Similarity score of two different HPOSets
+
+    You can identify terms via:
+
+    * **HPO Identifier**: ``'HP:0000003'``
+    * **Term name**: ``'Multicystic kidney dysplasia'``
+    * **Integer representation of HPO ID**: ``3``
+
+    Parameters
+    ----------
+    set1: list of int or str
+        Comma-separated list of HPOTerm identifiers
+    set2: list of int or str
+        Comma-separated list of HPOTerm identifiers
+    kind: str, default ``None``
+        Which kind of information content should be calculated.
+        Options are ['omim', 'orpha', 'decipher', 'gene']
+        See :func:`pyhpo.HPOTerm.similarity_score` for options
+
+    method: string, default ``None``
+        The method to use to calculate the similarity.
+        See :func:`pyhpo.HPOTerm.similarity_score` for options
+
+        Additional options:
+
+        * **equal** - Calculates exact matches between both sets
+
+    combine: string, default ``funSimAvg``
+        The method to combine similarity measures.
+
+        Available options:
+
+        * **funSimAvg** - Schlicker A, BMC Bioinformatics, (2006)
+        * **funSimMax** - Schlicker A, BMC Bioinformatics, (2006)
+        * **BMA** - Deng Y, et. al., PLoS One, (2015)
+
+    Returns
+    -------
+    float
+        The similarity score to the other HPOSet
+    """
+    set1 = HPOSet.from_queries([get_hpo_id(x) for x in set1.split(',')])
+    set2 = HPOSet.from_queries([get_hpo_id(x) for x in set2.split(',')])
+
+    return {
+        'set1': set1.toJSON(),
+        'set2': set2.toJSON(),
+        'similarity': set1.similarity(
+            set2,
+            kind=kind,
+            method=method,
+            combine=combine
+        )
+    }
