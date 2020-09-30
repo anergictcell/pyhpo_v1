@@ -1,12 +1,34 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
+from enum import Enum
 
 from pyhpo.ontology import Ontology
 from pyhpo.annotations import Gene, Omim
 from pyhpo.set import HPOSet
-
+from pyhpo.stats import EnrichmentModel
 
 app = FastAPI()
 _ = Ontology()
+
+gene_model = EnrichmentModel('gene')
+omim_model = EnrichmentModel('omim')
+
+
+class Similarity_Method(Enum):
+    resnik = 'resnik'
+    lin = 'lin'
+    jc = 'jc'
+    jc2 = 'jc2'
+    rel = 'rel'
+    ic = 'ic'
+    graphic = 'graphic'
+    dist = 'dist'
+    equal = 'equal'
+
+
+class Combination_Method(Enum):
+    funSimAvg = 'funSimAvg'
+    funSimMax = 'funSimMax'
+    BMA = 'BMA'
 
 
 def get_hpo_id(termid):
@@ -129,7 +151,7 @@ async def child_terms(term_id, verbose: bool = False):
 
 @app.get(
     '/term/{term_id}/genes',
-    tags=['terms', 'genes'],
+    tags=['terms', 'annotations'],
     response_description='List of Genes'
 )
 async def term_associated_genes(term_id):
@@ -164,7 +186,7 @@ async def term_associated_genes(term_id):
 
 @app.get(
     '/term/{term_id}/omim',
-    tags=['terms', 'diseases'],
+    tags=['terms', 'annotations'],
     response_description='List of OMIM Diseases'
 )
 async def term_associated_OMIM_diseases(term_id):
@@ -199,7 +221,7 @@ async def term_associated_OMIM_diseases(term_id):
 
 @app.get(
     '/term/{term_id}/intersect/omim',
-    tags=['terms', 'diseases'],
+    tags=['terms', 'annotations'],
     response_description='List of OMIM Diseases'
 )
 async def intersecting_OMIM_diseases(term_id, q: str):
@@ -239,7 +261,7 @@ async def intersecting_OMIM_diseases(term_id, q: str):
 
 @app.get(
     '/term/{term_id}/intersect/genes',
-    tags=['terms', 'genes'],
+    tags=['terms', 'annotations'],
     response_description='List of Genes'
 )
 async def intersecting_genes(term_id, q: str):
@@ -279,7 +301,7 @@ async def intersecting_genes(term_id, q: str):
 
 @app.get(
     '/term/{term_id}/union/omim',
-    tags=['terms', 'diseases'],
+    tags=['terms', 'annotations'],
     response_description='List of OMIM Diseases'
 )
 async def union_OMIM_diseases(term_id, q: str):
@@ -318,7 +340,7 @@ async def union_OMIM_diseases(term_id, q: str):
 
 @app.get(
     '/term/{term_id}/union/genes',
-    tags=['terms', 'genes'],
+    tags=['terms', 'annotations'],
     response_description='List of Genes'
 )
 async def union_genes(term_id, q: str):
@@ -469,8 +491,8 @@ async def gene(gene_id, verbose: bool = False):
     response_description='Similarity score'
 )
 async def terms_similarity(
-    set1: str,
-    set2: str,
+    set1: str = Query(..., example='HP:0001537,HP:0000002,HP:0004097'),
+    set2: str = Query(..., example='HP:0100360,HP:0001547,HP:0002060'),
     method: str = 'graphic',
     combine: str = 'funSimAvg',
     kind: str = 'omim'
@@ -497,10 +519,22 @@ async def terms_similarity(
 
     method: string, default ``None``
         The method to use to calculate the similarity.
-        See :func:`pyhpo.HPOTerm.similarity_score` for options
 
-        Additional options:
+        Available options:
 
+        * **resnik** - Resnik P, Proceedings of the 14th IJCAI, (1995)
+        * **lin** - Lin D, Proceedings of the 15th ICML, (1998)
+        * **jc** - Jiang J, Conrath D, ROCLING X, (1997)
+          Implementation according to R source code
+        * **jc2** - Jiang J, Conrath D, ROCLING X, (1997)
+          Implementation according to paper from R ``hposim`` library
+          Deng Y, et. al., PLoS One, (2015)
+        * **rel** - Relevance measure - Schlicker A, et.al.,
+          BMC Bioinformatics, (2006)
+        * **ic** - Information coefficient - Li B, et. al., arXiv, (2010)
+        * **graphic** - Graph based Information coefficient -
+          Deng Y, et. al., PLoS One, (2015)
+        * **dist** - Distance between terms
         * **equal** - Calculates exact matches between both sets
 
     combine: string, default ``funSimAvg``
@@ -530,3 +564,98 @@ async def terms_similarity(
             combine=combine
         )
     }
+
+
+@app.get(
+    '/enrichment/genes',
+    tags=['terms', 'enrichment'],
+    response_description='Enrichment scores'
+)
+async def gene_enrichment(
+    set1: str = Query(..., example='HP:0001537,HP:0000002,HP:0004097'),
+    method: str = 'hypergeom',
+    limit: int = 10,
+    offset: int = 0
+):
+    """
+    Enrichment of genes in an HPOSet
+
+    You can identify terms via:
+
+    * **HPO Identifier**: ``'HP:0000003'``
+    * **Term name**: ``'Multicystic kidney dysplasia'``
+    * **Integer representation of HPO ID**: ``3``
+
+    Parameters
+    ----------
+    set1: list of int or str
+        Comma-separated list of HPOTerm identifiers
+    method: str, default ``hypergeom``
+        Algorithm for enrichment calculation
+        Options are ['hypergeom']
+    limit: int, default 10
+        The number of results to return
+    offset: int, default 0
+        For paging, the offset of the first result to show
+
+    Returns
+    -------
+    list of dict
+        A ordered list with enriched genes
+    """
+    set1 = HPOSet.from_queries([get_hpo_id(x) for x in set1.split(',')])
+    res = gene_model.enrichment(method, set1)
+    return [{
+        'gene:': x['item'].toJSON(),
+        'count': x['count'],
+        'enrichment': x['enrichment']
+    } for x in res[offset:(limit+offset)]]
+
+
+@app.get(
+    '/enrichment/omim',
+    tags=['terms', 'enrichment'],
+    response_description='Enrichment scores'
+)
+async def omim_enrichment(
+    set1: str = Query(..., example='HP:0001537,HP:0000002,HP:0004097'),
+    method: str = 'hypergeom',
+    limit: int = 10,
+    offset: int = 0
+):
+    """
+    Enrichment of OMIM diseases in an HPOSet
+
+    You can identify terms via:
+
+    * **HPO Identifier**: ``'HP:0000003'``
+    * **Term name**: ``'Multicystic kidney dysplasia'``
+    * **Integer representation of HPO ID**: ``3``
+
+    Parameters
+    ----------
+    set1: list of int or str
+        Comma-separated list of HPOTerm identifiers
+
+    method: str, default ``hypergeom``
+        Algorithm for enrichment calculation
+        Options are ['hypergeom']
+
+    limit: int, default 10
+        The number of results to return
+
+    offset: int, default 0
+        For paging, the offset of the first result to show
+
+    Returns
+    -------
+    list of dict
+        A ordered list with enriched genes
+    """
+    set1 = HPOSet.from_queries([get_hpo_id(x) for x in set1.split(',')])
+    res = omim_model.enrichment(method, set1)
+    return [{
+        'omim:': x['item'].toJSON(),
+        'count': x['count'],
+        'enrichment': x['enrichment']
+    } for x in res[offset:(limit+offset)]]
