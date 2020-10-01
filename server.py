@@ -4,13 +4,15 @@ from enum import Enum
 from pyhpo.ontology import Ontology
 from pyhpo.annotations import Gene, Omim
 from pyhpo.set import HPOSet
-from pyhpo.stats import EnrichmentModel
+from pyhpo.stats import EnrichmentModel, HPOEnrichment
 
 app = FastAPI()
 _ = Ontology()
 
 gene_model = EnrichmentModel('gene')
 omim_model = EnrichmentModel('omim')
+hpo_model_genes = HPOEnrichment('gene')
+hpo_model_omim = HPOEnrichment('omim')
 
 
 class Similarity_Method(Enum):
@@ -659,3 +661,77 @@ async def omim_enrichment(
         'count': x['count'],
         'enrichment': x['enrichment']
     } for x in res[offset:(limit+offset)]]
+
+
+@app.get(
+    '/terms/suggest/',
+    tags=['terms', 'enrichment'],
+    response_description='HPOTerm list'
+)
+async def hpo_suggest(
+    set1: str = Query(..., example='HP:0001537,HP:0000002,HP:0004097'),
+    method: str = 'hypergeom',
+    limit: int = 10,
+    offset: int = 0,
+    n_genes: int = 5,
+    n_omim: int = 5
+):
+    """
+    Suggest 'similar' HPOterms based on a given list of Terms
+
+    What happens in the background when you call this:
+
+    * Search for the most enriched Genes and OMIM diseases based
+      on the provided HPOTerm list (like the enrichment call)
+    * Use the enriched genes and diseases and look for enriched
+      HPO terms among them
+
+    **Note**: The method has a small bug that duplicate terms
+    might be returned in some cases.
+
+    You can identify terms via:
+
+    * **HPO Identifier**: ``'HP:0000003'``
+    * **Term name**: ``'Multicystic kidney dysplasia'``
+    * **Integer representation of HPO ID**: ``3``
+
+    Parameters
+    ----------
+    set1: list of int or str
+        Comma-separated list of HPOTerm identifiers
+
+    method: str, default 'hypergeom'
+        Enrichment method to use
+
+    limit: int, default 10
+        The number of results to return
+
+    offset: int, default 0
+        For paging, the offset of the first result to show
+
+    n_genes: int, default 5
+        Consider HPO terms from the Top X enriched genes
+
+    n_omim: int, default 5
+        Consider HPO terms from the Top X enriched OMIM diseases
+    """
+
+    set1 = HPOSet.from_queries([get_hpo_id(x) for x in set1.split(',')])
+
+    if n_omim:
+        omim_res = hpo_model_omim.enrichment(
+            method,
+            [x['item'] for x in omim_model.enrichment(method, set1)[0:n_omim]]
+        )
+    else:
+        omim_res = []
+    if n_genes:
+        gene_res = hpo_model_genes.enrichment(
+            method,
+            [x['item'] for x in gene_model.enrichment(method, set1)[0:n_genes]]
+        )
+    else:
+        gene_res = []
+
+    res = sorted(omim_res + gene_res, key=lambda x: x['enrichment'])
+    return [x['hpo'].toJSON() for x in res[offset:(limit + offset)]]
