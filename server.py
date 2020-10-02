@@ -686,9 +686,6 @@ async def hpo_suggest(
     * Use the enriched genes and diseases and look for enriched
       HPO terms among them
 
-    **Note**: The method has a small bug that duplicate terms
-    might be returned in some cases.
-
     You can identify terms via:
 
     * **HPO Identifier**: ``'HP:0000003'``
@@ -733,5 +730,11 @@ async def hpo_suggest(
     else:
         gene_res = []
 
-    res = sorted(omim_res + gene_res, key=lambda x: x['enrichment'])
-    return [x['hpo'].toJSON() for x in res[offset:(limit + offset)]]
+    res = sorted(omim_res + gene_res, key=lambda x: x['enrichment'])[offset:]
+
+    hpos = []
+    while len(hpos) < limit:
+        hpo = res.pop(0)['hpo']
+        if hpo not in hpos and hpo not in set1:
+            hpos.append(hpo)
+    return [x.toJSON() for x in hpos]
