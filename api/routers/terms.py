@@ -1,9 +1,10 @@
-from enum import Enum
 from fastapi import APIRouter, Query
+from typing import List
 
 from pyhpo.ontology import Ontology
 
 from api.helpers import get_hpo_set
+from api import models
 
 router = APIRouter()
 
@@ -13,28 +14,12 @@ hpo_model_genes = None
 hpo_model_omim = None
 
 
-class Similarity_Method(Enum):
-    resnik = 'resnik'
-    lin = 'lin'
-    jc = 'jc'
-    jc2 = 'jc2'
-    rel = 'rel'
-    ic = 'ic'
-    graphic = 'graphic'
-    dist = 'dist'
-    equal = 'equal'
-
-
-class Combination_Method(Enum):
-    funSimAvg = 'funSimAvg'
-    funSimMax = 'funSimMax'
-    BMA = 'BMA'
-
-
 @router.get(
     '/search/{query}',
     tags=['terms'],
-    response_description='List of HPOTerms'
+    response_description='List of HPOTerms',
+    response_model=List[models.HPO],
+    response_model_exclude_none=True
 )
 async def HPO_search(
     query: str,
@@ -157,7 +142,7 @@ async def intersecting_genes(
     response_description='List of OMIM Diseases'
 )
 async def union_OMIM_diseases(
-        set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530')
+    set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530')
 ):
     """
     Get all OMIM Diseases, associated with several HPOTerms.
@@ -193,7 +178,7 @@ async def union_OMIM_diseases(
     response_description='List of Genes'
 )
 async def union_genes(
-        set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530')
+    set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530')
 ):
     """
     Get all Genes, associated with several HPOTerms.
@@ -226,7 +211,8 @@ async def union_genes(
 @router.get(
     '/similarity',
     tags=['similarity'],
-    response_description='Similarity score'
+    response_description='Similarity score',
+    response_model=models.Similarity_Score
 )
 async def terms_similarity(
     set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530'),
@@ -301,6 +287,90 @@ async def terms_similarity(
             method=method,
             combine=combine
         )
+    }
+
+
+@router.post(
+    '/similarity/',
+    tags=['similarity'],
+    response_description='Similarity scores',
+    response_model=models.Batch_Similarity_Score
+)
+async def batch_similarity(
+    data: models.POST_Batch,
+    method: str = 'graphic',
+    combine: str = 'funSimAvg',
+    kind: str = 'omim'
+):
+    """
+    Calculate similarity scores between one base and
+    several other HPOSets
+
+    You can identify terms via:
+
+    * **HPO Identifier**: ``'HP:0000003'``
+    * **Term name**: ``'Multicystic kidney dysplasia'``
+    * **Integer representation of HPO ID**: ``3``
+
+    Parameters
+    ----------
+    data: POST_Batch
+
+    kind: str, default ``None``
+        Which kind of information content should be calculated.
+        Options are ['omim', 'orpha', 'decipher', 'gene']
+        See :func:`pyhpo.HPOTerm.similarity_score` for options
+
+    method: string, default ``None``
+        The method to use to calculate the similarity.
+
+        Available options:
+
+        * **resnik** - Resnik P, Proceedings of the 14th IJCAI, (1995)
+        * **lin** - Lin D, Proceedings of the 15th ICML, (1998)
+        * **jc** - Jiang J, Conrath D, ROCLING X, (1997)
+          Implementation according to R source code
+        * **jc2** - Jiang J, Conrath D, ROCLING X, (1997)
+          Implementation according to paper from R ``hposim`` library
+          Deng Y, et. al., PLoS One, (2015)
+        * **rel** - Relevance measure - Schlicker A, et.al.,
+          BMC Bioinformatics, (2006)
+        * **ic** - Information coefficient - Li B, et. al., arXiv, (2010)
+        * **graphic** - Graph based Information coefficient -
+          Deng Y, et. al., PLoS One, (2015)
+        * **dist** - Distance between terms
+        * **equal** - Calculates exact matches between both sets
+
+    combine: string, default ``funSimAvg``
+        The method to combine similarity measures.
+
+        Available options:
+
+        * **funSimAvg** - Schlicker A, BMC Bioinformatics, (2006)
+        * **funSimMax** - Schlicker A, BMC Bioinformatics, (2006)
+        * **BMA** - Deng Y, et. al., PLoS One, (2015)
+
+    Returns
+    -------
+    object
+        The similarity scores to the other HPOSets
+    """
+    set1 = get_hpo_set(data.set1)
+    other_sets = []
+    for other in data.other_sets:
+        res = {'name': other.name}
+        set2 = get_hpo_set(other.set2)
+        res['similarity'] = set1.similarity(
+            set2,
+            kind=kind,
+            method=method,
+            combine=combine
+        )
+        res['set2'] = set2.toJSON()
+        other_sets.append(res)
+    return {
+        'set1': set1.toJSON(),
+        'other_sets': other_sets
     }
 
 
@@ -474,3 +544,29 @@ async def hpo_suggest(
         if hpo not in hpos and hpo not in set1:
             hpos.append(hpo)
     return [x.toJSON() for x in hpos]
+
+
+@router.get(
+    '/hierarchy/',
+    tags=['enrichment'],
+    response_description='HPOTerm list'
+)
+async def hierarchy_graph(
+    set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530')
+):
+    set1 = get_hpo_set(set1)
+
+    children = set()
+    for term in set1:
+        for child in term.children:
+            if child not in set1 and child not in children:
+                children.add(term)
+
+    return [{
+        'name': term.name,
+        'omim': term.information_content['omim'],
+        'gene': term.information_content['gene'],
+        'imports': [t.name for t in term.children],
+        'diseases': [d.name for d in term.omim_diseases],
+        'genes': [g.name for g in term.genes]
+    } for term in (set1 | children)]

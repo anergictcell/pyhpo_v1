@@ -1,6 +1,7 @@
 import logging
 from fastapi import FastAPI
 from fastapi.logger import logger
+from fastapi.middleware.cors import CORSMiddleware
 
 from pyhpo.ontology import Ontology
 from pyhpo.stats import EnrichmentModel, HPOEnrichment
@@ -8,6 +9,17 @@ from pyhpo.stats import EnrichmentModel, HPOEnrichment
 from .routers import term, terms, annotations
 
 app = FastAPI()
+
+origins = [
+    "*"
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 logging.getLogger().setLevel(logging.NOTSET)
 
