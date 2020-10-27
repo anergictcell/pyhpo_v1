@@ -1,6 +1,4 @@
-import logging
 from fastapi import FastAPI
-from fastapi.logger import logger
 from fastapi.middleware.cors import CORSMiddleware
 
 from pyhpo.ontology import Ontology
@@ -21,18 +19,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.getLogger().setLevel(logging.NOTSET)
 
-logger.info('Loading Ontology')
 _ = Ontology()
-logger.info('Loading Ontology - Complete')
 
-logger.info('Building enrichment background models')
 terms.gene_model = EnrichmentModel('gene')
 terms.omim_model = EnrichmentModel('omim')
 terms.hpo_model_genes = HPOEnrichment('gene')
 terms.hpo_model_omim = HPOEnrichment('omim')
-logger.info('Building enrichment background models - Complete')
 
 
 app.include_router(

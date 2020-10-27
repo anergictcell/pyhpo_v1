@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 from typing import List
 
 from pyhpo.ontology import Ontology
@@ -359,14 +359,20 @@ async def batch_similarity(
     other_sets = []
     for other in data.other_sets:
         res = {'name': other.name}
-        set2 = get_hpo_set(other.set2)
-        res['similarity'] = set1.similarity(
-            set2,
-            kind=kind,
-            method=method,
-            combine=combine
-        )
-        res['set2'] = set2.toJSON()
+        try:
+            set2 = get_hpo_set(other.set2)
+            res['similarity'] = set1.similarity(
+                set2,
+                kind=kind,
+                method=method,
+                combine=combine
+            )
+            res['set2'] = set2.toJSON()
+        except HTTPException as ex:
+            res['similarity'] = None
+            res['set2'] = None
+            res['error'] = ex.headers['X-TermNotFound']
+
         other_sets.append(res)
     return {
         'set1': set1.toJSON(),

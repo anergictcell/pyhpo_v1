@@ -15,7 +15,8 @@ def get_hpo_term(termid):
     if term is None:
         raise HTTPException(
             status_code=404,
-            detail='HPO Term does not exist'
+            detail='HPO Term does not exist',
+            headers={'X-TermNotFound': termid}
         )
     return Ontology.get_hpo_object(identifier)
 
@@ -29,12 +30,19 @@ def get_hpo_id(termid):
 
 def get_hpo_set(set_query):
     try:
-        return HPOSet.from_queries([
-            get_hpo_id(x)
+        return HPOSet([
+            get_hpo_term(x)
             for x in set_query.split(',')
         ])
+    except HTTPException as ex:
+        raise HTTPException(
+            status_code=400,
+            detail='Invalid HPO Term identifier in query',
+            headers=ex.headers
+        )
+
     except Exception:
         raise HTTPException(
             status_code=400,
-            detail='Invalid HPO Term identifier in query'
+            detail='Invalid query'
         )

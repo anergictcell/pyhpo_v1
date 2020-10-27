@@ -93,8 +93,9 @@ class Similarity_Score(BaseModel):
 
 class Batch_Similarity_Set(BaseModel):
     name: str
-    set2: List[HPOSimple]
-    similarity: float
+    set2: Optional[List[HPOSimple]]
+    similarity: Optional[float]
+    error: Optional[str]
 
 
 class Batch_Similarity_Score(BaseModel):
