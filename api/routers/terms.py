@@ -367,10 +367,8 @@ async def batch_similarity(
                 method=method,
                 combine=combine
             )
-            res['set2'] = set2.toJSON()
         except HTTPException as ex:
             res['similarity'] = None
-            res['set2'] = None
             res['error'] = ex.headers['X-TermNotFound']
 
         other_sets.append(res)
