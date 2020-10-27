@@ -1,10 +1,28 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 
 from pyhpo.ontology import Ontology
 from pyhpo.stats import EnrichmentModel, HPOEnrichment
 
 from .routers import term, terms, annotations
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title='PyHPO API',
+        version='1.0.0',
+        description='Use HTTP to interact with PyHPO',
+        routes=app.routes,
+    )
+    openapi_schema["info"]["x-logo"] = {
+        "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
+    }
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
 
 app = FastAPI()
 
@@ -18,6 +36,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.openapi = custom_openapi
 
 
 _ = Ontology()
