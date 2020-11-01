@@ -61,7 +61,9 @@ async def HPO_search(
 @router.get(
     '/intersect/omim',
     tags=['annotations'],
-    response_description='List of OMIM Diseases'
+    response_description='List of OMIM Diseases',
+    response_model=List[models.Omim]
+
 )
 async def intersecting_OMIM_diseases(
     set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530')
@@ -100,7 +102,8 @@ async def intersecting_OMIM_diseases(
 @router.get(
     '/intersect/genes',
     tags=['annotations'],
-    response_description='List of Genes'
+    response_description='List of Genes',
+    response_model=List[models.Gene]
 )
 async def intersecting_genes(
     set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530')
@@ -139,7 +142,8 @@ async def intersecting_genes(
 @router.get(
     '/union/omim',
     tags=['annotations'],
-    response_description='List of OMIM Diseases'
+    response_description='List of OMIM Diseases',
+    response_model=List[models.Omim]
 )
 async def union_OMIM_diseases(
     set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530')
@@ -175,7 +179,8 @@ async def union_OMIM_diseases(
 @router.get(
     '/union/genes',
     tags=['annotations'],
-    response_description='List of Genes'
+    response_description='List of Genes',
+    response_model=List[models.Gene]
 )
 async def union_genes(
     set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530')
@@ -476,7 +481,8 @@ async def omim_enrichment(
 @router.get(
     '/suggest/',
     tags=['enrichment'],
-    response_description='HPOTerm list'
+    response_description='HPOTerm list',
+    response_model=List[models.HPO]
 )
 async def hpo_suggest(
     set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530'),
@@ -553,7 +559,9 @@ async def hpo_suggest(
 @router.get(
     '/hierarchy/',
     tags=['enrichment'],
-    response_description='HPOTerm list'
+    response_description='HPOTerm list',
+    response_model=List[models.HPO]
+
 )
 async def hierarchy_graph(
     set1: str = Query(..., example='HP:0007401,HP:0010885,HP:0006530')

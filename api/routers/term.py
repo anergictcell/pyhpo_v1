@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Path
+from typing import List
 
 from pyhpo.set import HPOSet
 from api.helpers import get_hpo_term
+from api import models
 
 router = APIRouter()
 
 
 @router.get(
     '/{term_id}',
-    response_description='HPOTerm object'
+    response_description='HPOTerm object',
+    response_model=models.HPO
 )
 async def HPO_term(
         term_id=Path(..., example='HP:0000822'),
@@ -41,7 +44,8 @@ async def HPO_term(
 
 @router.get(
     '/{term_id}/parents',
-    response_description='HPOTerm object'
+    response_description='HPOTerm object',
+    response_model=List[models.HPO]
 )
 async def parent_terms(
     term_id=Path(..., example='HP:0000822'),
@@ -77,7 +81,9 @@ async def parent_terms(
 
 @router.get(
     '/{term_id}/children',
-    response_description='HPOTerm object'
+    response_description='HPOTerm object',
+    response_model=List[models.HPO]
+
 )
 async def child_terms(
     term_id=Path(..., example='HP:0000822'),
@@ -113,7 +119,8 @@ async def child_terms(
 
 @router.get(
     '/{term_id}/neighbours',
-    response_description='HPOTerm object'
+    response_description='HPOTerm object',
+    response_model=models.HPONeighbours
 )
 async def neighbour_terms(
     term_id=Path(..., example='HP:0000822'),
@@ -170,7 +177,9 @@ async def neighbour_terms(
 @router.get(
     '/{term_id}/genes',
     tags=['annotations'],
-    response_description='List of Genes'
+    response_description='List of Genes',
+    response_model=List[models.Gene]
+
 )
 async def term_associated_genes(
     term_id=Path(..., example='HP:0000822')
@@ -203,7 +212,8 @@ async def term_associated_genes(
 @router.get(
     '/{term_id}/omim',
     tags=['annotations'],
-    response_description='List of OMIM Diseases'
+    response_description='List of OMIM Diseases',
+    response_model=List[models.Omim]
 )
 async def term_associated_OMIM_diseases(
     term_id=Path(..., example='HP:0000822')

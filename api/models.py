@@ -76,6 +76,42 @@ class HPOSimple(BaseModel):
             }
 
 
+class HPONeighbours(BaseModel):
+    parents: List[HPO]
+    children: List[HPO]
+    neighbours: List[HPO]
+
+
+class Omim(BaseModel):
+    id: int
+    name: str
+    hpo: Optional[List[HPO]]
+
+    class Config:
+        schema_extra = {
+            'example': {
+                'id': 230800,
+                'name': 'GAUCHER DISEASE, TYPE I'
+            }
+        }
+
+
+class Gene(BaseModel):
+    id: int
+    name: str
+    symbol: str
+    hpo: Optional[List[HPO]]
+
+    class Config:
+        schema_extra = {
+            'example': {
+                'id': 2629,
+                'name': 'GBA',
+                'symbol': 'GBA'
+            }
+        }
+
+
 class Similarity_Score(BaseModel):
     set1: List[HPOSimple]
     set2: List[HPOSimple]
@@ -91,11 +127,53 @@ class Similarity_Score(BaseModel):
         }
 
 
+class Similarity_Score_OMIM(BaseModel):
+    set1: List[HPOSimple]
+    set2: List[HPOSimple]
+    omim: Omim
+    similarity: float
+
+    class Config:
+        schema_extra = {
+            'example': {
+                'set1': [HPOSimple.Config.schema_extra['example']],
+                'set2': [HPOSimple.Config.schema_extra['example']],
+                'omim': Omim.Config.schema_extra['example'],
+                'similarity': 0.3422332
+            }
+        }
+
+
+class Similarity_Score_Gene(BaseModel):
+    set1: List[HPOSimple]
+    set2: List[HPOSimple]
+    gene: Gene
+    similarity: float
+
+    class Config:
+        schema_extra = {
+            'example': {
+                'set1': [HPOSimple.Config.schema_extra['example']],
+                'set2': [HPOSimple.Config.schema_extra['example']],
+                'gene': Gene.Config.schema_extra['example'],
+                'similarity': 0.3422332
+            }
+        }
+
+
 class Batch_Similarity_Set(BaseModel):
     name: str
-    set2: Optional[List[HPOSimple]]
     similarity: Optional[float]
     error: Optional[str]
+
+    class Config:
+        schema_extra = {
+            'example': {
+                'name': 'Comparison-Set 123',
+                'similarity': 0.3763421567579537,
+                'error': None
+            }
+        }
 
 
 class Batch_Similarity_Score(BaseModel):
@@ -105,56 +183,49 @@ class Batch_Similarity_Score(BaseModel):
     class Config:
         schema_extra = {
             'example': {
-                "set1": [{
-                    "int": 7401,
-                    "id": "HP:0007401",
-                    "name": "Macular atrophy"
+                'set1': [{
+                    'int': 7401,
+                    'id': 'HP:0007401',
+                    'name': 'Macular atrophy'
                 }, {
-                    "int": 6530,
-                    "id": "HP:0006530",
-                    "name": "Interstitial pulmonary abnormality"
+                    'int': 6530,
+                    'id': 'HP:0006530',
+                    'name': 'Interstitial pulmonary abnormality'
                 }, {
-                    "int": 10885,
-                    "id": "HP:0010885",
-                    "name": "Avascular necrosis"
+                    'int': 10885,
+                    'id': 'HP:0010885',
+                    'name': 'Avascular necrosis'
                 }],
-                "other_sets": [{
-                    "name": "Comparison-Set 123",
-                    "set2": [{
-                        "int": 2754,
-                        "id": "HP:0002754",
-                        "name": "Osteomyelitis"
-                    }, {
-                        "int": 31630,
-                        "id": "HP:0031630",
-                        "name": "Abnormal subpleural morphology"
-                    }, {
-                        "int": 200070,
-                        "id": "HP:0200070",
-                        "name": "Peripheral retinal atrophy"
-                    }],
-                    "similarity": 0.3763421567579537
-                }, {
-                    "name": "Comparison-Set FooBar",
-                    "set2": [{
-                        "int": 12337,
-                        "id": "HP:0012337",
-                        "name": "Abnormal homeostasis"
-                    }, {
-                        "int": 2098,
-                        "id": "HP:0002098",
-                        "name": "Respiratory distress"
-                    }, {
-                        "int": 12332,
-                        "id": "HP:0012332",
-                        "name": "Abnormal autonomic nervous system physiology"
-                    }, {
-                        "int": 2094,
-                        "id": "HP:0002094",
-                        "name": "Dyspnea"
-                    }],
-                    "similarity": 0.03963063153301517
-                }]
+                'other_sets': [
+                    Batch_Similarity_Set.Config.schema_extra['example'],
+                    Batch_Similarity_Set.Config.schema_extra['example']
+                ]
+            }
+        }
+
+
+class POST_OMIM_Batch(BaseModel):
+    set1: str
+    omim_diseases: List[int]
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "set1": "HP:0007401,HP:0010885,HP:0006530",
+                "omim_diseases": [230800, 230900, 231000, 231005, 608013]
+            }
+        }
+
+
+class POST_Gene_Batch(BaseModel):
+    set1: str
+    genes: List[str]
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "set1": "HP:0007401,HP:0010885,HP:0006530",
+                "genes": ['GBA', 'EZH2']
             }
         }
 
