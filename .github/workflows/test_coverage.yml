@@ -5,6 +5,8 @@ name: Complete unit, integration tests and test coverage measurement
 
 on:
   push:
+    tags:
+      - "!*"
 
 jobs:
   test_coverage:

@@ -2,6 +2,16 @@
 PyHPO
 *****
 
+.. note::
+
+    **New maintainer - Centogene**
+
+    As of version 2.7, the library is maintained by CENTOGENE. The  new `Git repository`_ is at https://github.com/Centogene/pyhpo
+
+    The documentation is now also hosted by Github at https://centogene.github.io/pyhpo/
+
+    I will continue to be the maintainer of PyHPO
+
 A Python library to work with, analyze, filter and inspect the `Human Phenotype Ontology`_
 
 Visit the `PyHPO Documentation`_ for a more detailed overview of all the functionality.
@@ -218,3 +228,4 @@ Sebastian Köhler, Leigh Carmody, Nicole Vasilevsky, Julius O B Jacobsen, et al.
 .. _PyHPO Documentation: https://esbme.com/pyhpo/docs/ 
 .. _MIT license: http://www.opensource.org/licenses/mit-license.php
 .. _Human Phenotype Ontology: https://hpo.jax.org/
+.. _Git repository: https://github.com/Centogene/pyhpo
